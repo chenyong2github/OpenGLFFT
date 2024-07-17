@@ -1,5 +1,5 @@
 #include "FFT2D.h"
-#include <GLFW/glfw3.h>
+#include <glfw3.h>
 #include <iostream>
 #include <array>
 
@@ -79,7 +79,9 @@ void screenshot(int width, int height, const char* filename)
 
 int main(int argc, char *argv[])
 {
-    std::array<char*, 5> paths = {};
+    std::cout << "Hello GLFTT" << std::endl;
+
+    std::array<char*, 6> paths = {};
 
     {
         int i = 1;
@@ -106,6 +108,10 @@ int main(int argc, char *argv[])
             {
                 paths[4] = argv[i + 1];
             }
+            else if (strcmp(argv[i], "-watermark") == 0)
+            {
+                paths[5] = argv[i + 1];
+            }
             else
             {
                 std::cout << "Unrecognized option: " << argv[i] << '\n';
@@ -126,7 +132,7 @@ int main(int argc, char *argv[])
 
     try
     {
-        FFT2D fft(paths[0]);
+        FFT2D fft(paths[0], paths[5]);
 
         fft.foward();
 
@@ -155,9 +161,9 @@ int main(int argc, char *argv[])
         {
             fft.inverse();
 
-            fft.originalImage.bindAsFrameBuffer();
+            fft.outputImage.bindAsFrameBuffer();
 
-            screenshot(fft.originalImage.get_width(), fft.originalImage.get_height(), paths[4]);
+            screenshot(fft.outputImage.get_width(), fft.outputImage.get_height(), paths[4]);
         }
     }
     catch (const std::exception& except)

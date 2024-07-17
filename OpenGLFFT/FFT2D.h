@@ -1,17 +1,21 @@
 #pragma once
 
+#include <iostream>
+#include <chrono>
 #include "Image2D.h"
 #include "ssbo.h"
 #include "FFTAdditionalFunctions.h"
 #include "ComputeShader.h"
-#include "ShaderSources.h";
+#include "ShaderSources.h"
 
 class FFT2D
 {
 public:
-	FFT2D(std::string_view path)
+	FFT2D(std::string_view path, std::string_view watermarkPath)
 		: 
-		originalImage(path, true), 
+		originalImage(path, true),
+		outputImage(originalImage.get_width(), originalImage.get_height(), originalImage.get_channels()),
+		watermarkImage(watermarkPath, true),
 		realPart(nextPoT(originalImage.get_width()), nextPoT(originalImage.get_height()), originalImage.get_channels()),
 		imaginaryPart(realPart.get_width(), realPart.get_height(), realPart.get_channels()), 
 		fft2d(FFT2DSource, false)
@@ -33,19 +37,29 @@ public:
 		originalImage.upload();
 		realPart.upload();
 		imaginaryPart.upload();
+		watermarkImage.upload();
+		outputImage.upload();
+
 
 		fft2d.bindUniform("inputImage", 0);
 		fft2d.bindUniform("realPart", 1);
 		fft2d.bindUniform("imagPart", 2);
 		fft2d.bindUniform("img_info", 3);
+		fft2d.bindUniform("watermark", 4);
+		fft2d.bindUniform("outputImage", 5);
 
 		originalImage.bind(0);
 		realPart.bind(1);
 		imaginaryPart.bind(2);
+		watermarkImage.bind(4);
+		outputImage.bind(5);
 	}
 
 	void foward()
 	{
+		// 开始时间点
+		auto start = std::chrono::high_resolution_clock::now();
+
 		{
 			fft2ddata.stage = 0;
 			SSBO tmp(fft2ddata, 3);
@@ -59,6 +73,15 @@ public:
 			
 			fft2d.invoke(realPart.get_height());
 		}
+
+		// 结束时间点
+		auto finish = std::chrono::high_resolution_clock::now();
+
+		// 计算持续时间
+		std::chrono::duration<double> elapsed = finish - start;
+
+		// 输出执行时间
+		std::cout << "Elapsed time: " << elapsed.count() << "s\n";
 	}
 
 	void inverse()
@@ -111,6 +134,8 @@ public:
 	Image2D originalImage;
 	Image2D realPart;
 	Image2D imaginaryPart;
+	Image2D watermarkImage;
+	Image2D outputImage;
 
 private:
 	ComputeShader fft2d;

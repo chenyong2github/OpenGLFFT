@@ -16,6 +16,8 @@ layout (local_size_x = WORKGROUP_SIZE_X, local_size_y = 1, local_size_z = 1) in;
 layout (binding = 0, rgba32f) uniform image2D inputImage;
 layout (binding = 1, rgba32f) uniform image2D realPart;
 layout (binding = 2, rgba32f) uniform image2D imagPart;
+layout (binding = 4, rgba32f) uniform image2D watermark;
+layout (binding = 5, rgba32f) uniform image2D outputImage;
 
 layout(std430, binding = 3) buffer img_info {
 	int input_width;
@@ -155,8 +157,18 @@ void store_stage1_2(int btid, int g_offset, int scanline, float N)
     {        
 		ivec2 idx = ivec2(scanline, i);
 
-		vec4 colr = pixel_buffer_real[i - btid * 2] * N;
-		vec4 coli = pixel_buffer_imag[i - btid * 2] * N;
+		float scale = 1;
+		//if (N >= 1)
+		{
+			vec4 wcol = imageLoad(watermark, idx);
+			if (idx.x < 256 && idx.y < 256)
+			{
+				scale *= wcol.x > 0 ? (1-wcol.x) : 1;
+			}
+		}
+
+		vec4 colr = pixel_buffer_real[i - btid * 2] * N * vec4(1, scale, 1, 1);
+		vec4 coli = pixel_buffer_imag[i - btid * 2] * N * scale;
 
 		imageStore(realPart, idx, colr);
 		imageStore(imagPart, idx, coli);
@@ -184,7 +196,7 @@ void store_stage3(int btid, int g_offset, int scanline, float N)
 
 		vec4 col = pixel_buffer_real[i - btid * 2] * N;
 			
-		imageStore(inputImage, ivec2(i, scanline), col);
+		imageStore(outputImage, ivec2(i, scanline), col);
     }
 }
 
